@@ -8,6 +8,13 @@ var serverToClient;
 var server;
 var port = 1337;
 
+var NAWS = 31;
+var WILL = 251;
+var WONT = 252;
+var DO = 253;
+var DONT = 254;
+var IAC = 255;
+
 describe('telnet', function () {
   it('should export a function', function () {
     assert.equal('function', typeof telnet);
@@ -53,15 +60,28 @@ describe('telnet', function () {
       clientToServer.write(stringToSend);
     });
 
-    it('should capture window size events with no arguments', function (done) {
-      serverToClient.on('window size', function (b) {
-        assert.equal(b.command, 'do');
-        assert.equal(b.data, null);
+    it('should wait to emit data events until someone is listening', function (done) {
+      setTimeout(function () {
+        serverToClient.on('data', function (b) {
+          assert.deepEqual(b, new buffer.Buffer('x'));
+          done();
+        }, 100);
+      });
+
+      clientToServer.write('x');
+    });
+
+    it('should reject all options by default', function (done) {
+      clientToServer.write(new buffer.Buffer([IAC, DO, NAWS, IAC, WILL, NAWS]));
+
+      clientToServer.on('data', function (b) {
+        assert.deepEqual(b, new buffer.Buffer([IAC, WONT, NAWS, IAC, DONT, NAWS]));
         done();
       });
 
-      // IAC DO NAWS
-      clientToServer.write(new buffer.Buffer([0xFF, 0xFD, 0x1F]));
+      serverToClient.on('data', function () {
+        // begin processing
+      });
     });
   });
 });
